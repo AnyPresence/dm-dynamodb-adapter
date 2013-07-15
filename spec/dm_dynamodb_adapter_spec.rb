@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe DataMapper::Adapters::DynamoDB::Adapter do
+describe DataMapper::Adapters::Dynamodb::Adapter do
   before(:all) do
     @adapter = DataMapper.setup(:default,
         { :adapter  => :dynamodb,
@@ -10,4 +10,5 @@ describe DataMapper::Adapters::DynamoDB::Adapter do
     )
   end
   
+  it_should_behave_like 'An Adapter'
 end

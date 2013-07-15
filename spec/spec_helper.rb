@@ -19,4 +19,7 @@ TEST_SECRET_ACCESS_KEY = ENV['AWS_DYNAMODB_TEST_SECRET_ACCESS_KEY']
 
 raise "AWS credentials not found. Please set both environment variables to run tests: AWS_DYNAMODB_TEST_ACCESS_KEY_ID and AWS_DYNAMODB_TEST_SECRET_ACCESS_KEY" if TEST_ACCESS_KEY_ID.nil? || TEST_SECRET_ACCESS_KEY.nil?
 
+ENV['ADAPTER'] = 'DynamoDB'
+ENV['ADAPTER_SUPPORTS'] = 'all'
+
 DataMapper.finalize
