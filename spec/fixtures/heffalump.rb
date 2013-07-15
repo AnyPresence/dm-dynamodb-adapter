@@ -1,7 +1,7 @@
 class ::Heffalump
   include ::DataMapper::Resource
   
-  property :id, Serial
+  property :id, Serial, field: "_id"
   property :color, String
   property :num_spots, Integer
   property :latitude, Float
