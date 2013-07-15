@@ -47,9 +47,19 @@ module DataMapper
         def create(resources)
           resources.each do |resource|
             model = resource.model
-            DataMapper.logger.debug("About to create #{model} using #{resource.attributes}")
-          end
-          raise "Implement me!"
+            serial = model.serial
+            id = generate_id(serial)
+            
+            table = @db.tables[model.storage_name]
+            table.hash_key = [serial.field, :string]
+            raise "Table #{model.storage_name} not found." unless table.schema_loaded?
+            
+            fields = resource.attributes(:field)
+            fields[serial.field] = id
+            DataMapper.logger.debug("About to create #{model} using #{fields} in #{table.name}")
+            table.items.create(fields)
+            serial.set!(resource, id)
+          end.size
         end
         
         # Updates one or many existing resources
@@ -92,6 +102,9 @@ module DataMapper
           raise "Implement me!"
         end
         
+        def generate_id(key)
+          SecureRandom.uuid()
+        end
       end
     end
   end
