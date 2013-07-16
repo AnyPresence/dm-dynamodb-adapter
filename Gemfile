@@ -10,7 +10,7 @@ group :test do
   gem 'rake'
   
   gem 'bundler',        '~> 1.3.5'
-  
+
+  gem "dm-core",  DM_VERSION  
   gem 'dm-types', DM_VERSION
-  gem "dm-core",  DM_VERSION
 end

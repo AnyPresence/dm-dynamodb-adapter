@@ -26,27 +26,28 @@ module DataMapper
         #
         # @api semipublic
         def read(query)
-          DataMapper.logger.debug("Read #{query.inspect} and its model is #{query.model.inspect}")
-#<DataMapper::Query @repository=:default @model=Heffalump @fields=[#<DataMapper::Property::Serial @model=Heffalump @name=:id>, #<DataMapper::Property::String @model=Heffalump @name=:color>, #<DataMapper::Property::Integer @model=Heffalump @name=:num_spots>, #<DataMapper::Property::Boolean @model=Heffalump @name=:striped>] @links=[] @conditions=nil @order=[#<DataMapper::Query::Direction @target=#<DataMapper::Property::Serial @model=Heffalump @name=:id> @operator=:asc>] @limit=nil @offset=0 @reload=false @unique=false>
+          #DataMapper.logger.debug("Read #{query.inspect} and its model is #{query.model.inspect}")
           model = query.model
           repository = query.repository
-          key = key_mapping(model)
-          table = @db.tables[model.storage_name(repository)]
-          table.hash_key = [key, :string]
-          raise "Table #{table.name} not found." unless table.schema_loaded?
+          serial = model.serial.field
+          table = load_table(model.storage_name(repository), serial)
                   
-          fields = query.fields.map{ |field| field.name.to_s }
+          fields = query.fields.map{ |property| property.field }
           conditions = query.conditions
           order = query.order
           limit = query.limit
           offset = query.offset
           records = []
-          DataMapper.logger.debug("Query fields are #{fields.inspect}")
-          table.items.select(*fields).each do |item_data|
-            DataMapper.logger.debug("Item data is #{item_data.attributes.inspect}")
-            records << parse_record(repository, model, item_data.attributes)
+          begin
+            #DataMapper.logger.debug("Query fields are #{fields.inspect}")
+            table.items.select(*fields).each do |item_data|
+              #DataMapper.logger.debug("Item data is #{item_data.attributes.inspect}")
+              records << parse_record(repository, model, item_data.attributes)
+            end
+            #DataMapper.logger.debug("Query pulled #{records.inspect}")
+          rescue => e
+            DataMapper.logger.error("Query failed #{e}")
           end
-          DataMapper.logger.debug("Query pulled #{records.inspect}")
           records
         end
         
@@ -65,24 +66,28 @@ module DataMapper
         #
         # @api semipublic  
         def create(resources)
+          created = 0
           resources.each do |resource|
             model = resource.model
             serial = model.serial
-            key = key_mapping(model)
-            id = generate_id(serial)
-
-            table = @db.tables[model.storage_name]
-            table.hash_key = [key, :string]
-            raise "Table #{table.name} not found." unless table.schema_loaded?
+            id = generate_id(serial.field)
             
-            attributes = resource.attributes(:field)
-            DataMapper.logger.debug("Serial is #{serial.inspect}")
-            attributes[key] = id
+            table = load_table(model.storage_name, serial.field)
+            attributes = resource.attributes(key_on = :field)
+            DataMapper.logger.debug("Serial is #{serial.inspect} and attributes are #{attributes}")
+            attributes[serial.field] = id
             attributes = to_dynamodb_hash(resource, attributes)
             DataMapper.logger.debug("About to create #{model} using #{attributes} in #{table.name}")
-            table.items.create(attributes)
-            serial.set!(resource, id)
-          end.size
+            begin
+              stored_item = table.items.create(attributes)
+              serial.set!(resource, stored_item.hash_value )
+              created += 1
+            rescue => e
+              DataMapper.logger.error("Failure #{e.inspect}")
+            end
+          end
+          DataMapper.logger.debug("Created #{created} records.")
+          created
         end
         
         # Updates one or many existing resources
@@ -103,7 +108,28 @@ module DataMapper
         # @api semipublic
         def update(attributes, collection)
           DataMapper.logger.debug("Update called with:\nAttributes #{attributes.inspect} \nCollection: #{collection.inspect}")
-          raise "Implement me!"
+          updated = 0
+
+          collection.each do |resource|
+            model = resource.model
+            serial = model.serial.field
+            begin
+              table = load_table(model.storage_name, serial)
+              item = table.items[resource.attribute_get(serial)]
+            
+              attributes.each do |property, object|
+                DataMapper.logger.debug("Setting #{property.field} = #{object}")
+                item.attributes.update do |u|
+                  u.set(property.field => object)
+                end
+              end
+              updated += 1
+            rescue => e
+              DataMapper.logger.error("Failure while updating #{e.inspect}")
+            end
+          end
+          
+          updated
         end
         
         # Deletes one or many existing resources
@@ -154,18 +180,17 @@ module DataMapper
           record = {}
           hash.each do |field, value|
             DataMapper.logger.debug("#{field} = #{value}")
-            name = field.to_s
-            property = field_to_property[name]
+            property = field_to_property[field]
 
             if property.nil?
-              property = field_to_property[name.to_sym]
+              property = field_to_property[field.to_sym]
             end
 
             if property.instance_of? DataMapper::Property::Object
               raise "Array properties are not yet supported! Or are they?"
             else
               next unless property
-              record[name] = property.typecast(value)
+              record[property.field.to_s] = property.typecast(value)
             end
           end
           record
@@ -175,9 +200,11 @@ module DataMapper
         def make_field_to_property_hash(repository_name, model)
           Hash[ model.properties(repository_name).map { |p| [ p.field, p ] } ]
         end
-   
-        def key_mapping(model)
-          model.serial.field.to_s
+        
+        def load_table(table_name, key)
+          table = @db.tables[table_name]
+          table.hash_key = [key, :string]
+          table
         end
       end
     end
