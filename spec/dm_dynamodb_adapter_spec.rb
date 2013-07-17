@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe DataMapper::Adapters::Dynamodb::Adapter do
-
+  
   before(:all) do
     @adapter = DataMapper.setup(:default,
         { :adapter  => :dynamodb,
@@ -9,11 +9,10 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
           :aws_secret_access_key => TEST_SECRET_ACCESS_KEY
         }
     )
-    
-    dynamo_db = AWS::DynamoDB.new(:access_key_id => TEST_ACCESS_KEY_ID,:secret_access_key => TEST_SECRET_ACCESS_KEY)    
-    create_test_table(dynamo_db,'heffalumps')
   end
+  it_should_behave_like 'An Adapter'
   
+=begin  
   describe '#create' do
     it 'should not raise any errors' do
       lambda {
@@ -32,7 +31,6 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
   describe '#read' do
     before :all do
       @heffalump = heffalump_model.create(:color => 'brownish hue')
-      @query = heffalump_model.all.query
     end
 
     it 'should not raise any errors' do
@@ -47,36 +45,38 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
   end
   
   describe '#update' do
-    before :all do
-      @heffalump = heffalump_model.create(:color => 'indigo')
+    before :each do
+      @heffa = heffalump_model.create(:color => 'indigo')
     end
 
     it 'should not raise any errors' do
-      lambda {
-        @heffalump.color = 'violet'
-        @heffalump.save
-      }.should_not raise_error
+      begin
+        @heffa.color = 'violet'
+        @heffa.save
+      rescue NameError => e
+        puts "OOPS #{e.backtrace.join("\n")}"
+      end
     end
 
     it 'should not alter the identity field' do
-      id = @heffalump.id
-      @heffalump.color = 'violet'
-      @heffalump.save
-      @heffalump.id.should == id
+      id = @heffa.id
+      @heffa.color = 'violet'
+      @heffa.save
+      @heffa.id.should == id
     end
 
     it 'should update altered fields' do
-      @heffalump.color = 'violet'
-      @heffalump.save
-      heffalump_model.get(*@heffalump.key).color.should == 'violet'
+      @heffa.color = 'violet'
+      @heffa.save
+      heffalump_model.get(*@heffa.key).color.should == 'violet'
     end
 
     it 'should not alter other fields' do
-      color = @heffalump.color
-      @heffalump.num_spots = 3
-      @heffalump.save
-      heffalump_model.get(*@heffalump.key).color.should == color
+      color = @heffa.color
+      @heffa.num_spots = 3
+      @heffa.save
+      heffalump_model.get(*@heffa.key).color.should == color
     end
   end
-  
+=end  
 end

@@ -26,7 +26,7 @@ module DataMapper
         #
         # @api semipublic
         def read(query)
-          #DataMapper.logger.debug("Read #{query.inspect} and its model is #{query.model.inspect}")
+          DataMapper.logger.debug("Read #{query.inspect} and its model is #{query.model.inspect}")
           model = query.model
           repository = query.repository
           serial = model.serial.field
@@ -39,12 +39,12 @@ module DataMapper
           offset = query.offset
           records = []
           begin
-            #DataMapper.logger.debug("Query fields are #{fields.inspect}")
+            DataMapper.logger.debug("Query fields are #{fields.inspect}")
             table.items.select(*fields).each do |item_data|
-              #DataMapper.logger.debug("Item data is #{item_data.attributes.inspect}")
+              DataMapper.logger.debug("Item data is #{item_data.attributes.inspect}")
               records << parse_record(repository, model, item_data.attributes)
             end
-            #DataMapper.logger.debug("Query pulled #{records.inspect}")
+            DataMapper.logger.debug("Query pulled #{records.inspect}")
           rescue => e
             DataMapper.logger.error("Query failed #{e}")
           end
@@ -67,20 +67,21 @@ module DataMapper
         # @api semipublic  
         def create(resources)
           created = 0
+          name = self.name
           resources.each do |resource|
             model = resource.model
-            serial = model.serial
+            serial = model.serial(name)
             id = generate_id(serial.field)
             
-            table = load_table(model.storage_name, serial.field)
-            attributes = resource.attributes(key_on = :field)
-            DataMapper.logger.debug("Serial is #{serial.inspect} and attributes are #{attributes}")
+            attributes = resource.attributes(:field)
             attributes[serial.field] = id
             attributes = to_dynamodb_hash(resource, attributes)
-            DataMapper.logger.debug("About to create #{model} using #{attributes} in #{table.name}")
+            
             begin
+              table = load_table(model.storage_name, serial.field)
               stored_item = table.items.create(attributes)
-              serial.set!(resource, stored_item.hash_value )
+              initialize_serial(resource, id)
+              DataMapper.logger.debug("Saved resource is now #{resource.inspect}")
               created += 1
             rescue => e
               DataMapper.logger.error("Failure #{e.inspect}")
@@ -154,7 +155,7 @@ module DataMapper
         private
         
         def generate_id(serial)
-          SecureRandom.uuid()
+          SecureRandom.uuid.gsub('-', '').hex
         end
         
         def to_dynamodb_hash(resource, attributes)
