@@ -31,8 +31,10 @@ module DataMapper
         
         def build_conditions(conditions)
           conditions.each do |condition|
-            if condition.instance_of? DataMapper::Query::Conditions::EqualToComparison
+            if condition.instance_of? ::DataMapper::Query::Conditions::EqualToComparison
               @aws_query = @aws_query.where(condition.subject.field.to_sym).equals(condition.loaded_value)
+            elsif condition.instance_of? ::DataMapper::Query::Conditions::InclusiveRange
+              raise "BOOM"
             else
               raise "build_conditions #{condition.class} is not yet supported!"
             end

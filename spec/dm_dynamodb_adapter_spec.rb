@@ -11,7 +11,8 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
         }
     )
   end
-  #it_should_behave_like 'An Adapter'
+  
+  it_should_behave_like 'An Adapter'
   
   describe '#create' do
     it 'should not raise any errors' do

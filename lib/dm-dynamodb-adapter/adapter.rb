@@ -14,7 +14,6 @@ module DataMapper
           DataMapper.logger.debug("Connected to #{@db}")
           @hash_key_type = @options.fetch(:hash_key_type, HASH_KEY_TYPES.first)
           raise "Key type must be one of #{HASH_KEY_TYPES.join(', ')}" unless HASH_KEY_TYPES.include?(@hash_key_type)
-          @next_id = 0
         end
         
         # Reads one or many resources from a datastore
@@ -142,7 +141,23 @@ module DataMapper
         # @api semipublic
         def delete(collection)
           DataMapper.logger.debug("Delete called with: #{collection.inspect}")
-          raise "Implement me!"
+          deleted = 0
+          
+          collection.each do |resource|
+            model = resource.model
+            serial = model.serial.field
+            
+            begin
+              table = load_table(model.storage_name, serial)
+              item = table.items[resource.attribute_get(serial)]
+              item.delete
+              deleted += 1
+            rescue => e
+              DataMapper.logger.error("Failure while deleting #{e.inspect}")
+            end
+          end
+          
+          deleted
         end
         
         private
@@ -153,7 +168,8 @@ module DataMapper
           when :string
             uuid
           when :number
-            @next_id += 1 #uuid.gsub('-','').to_i 
+            #@next_id += 1 #
+            uuid.gsub('-','').to_i 
           when :binary
             uuid.gsub('-','').hex
           else
