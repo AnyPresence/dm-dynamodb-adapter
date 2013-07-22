@@ -2,6 +2,9 @@ module DataMapper
   module Adapters
     module Dynamodb
       class Adapter < DataMapper::Adapters::AbstractAdapter
+        include QueryDelegate
+        
+        HASH_KEY_TYPES = [:string, :number].freeze
         
         def initialize(name, options)
           super
@@ -9,6 +12,8 @@ module DataMapper
           secret_access_key = @options.fetch(:aws_secret_access_key)
           @db = AWS::DynamoDB.new(:access_key_id => access_key_id,:secret_access_key => secret_access_key)
           DataMapper.logger.debug("Connected to #{@db}")
+          @hash_key_type = @options.fetch(:hash_key_type, HASH_KEY_TYPES.first)
+          raise "Key type must be one of #{HASH_KEY_TYPES.join(', ')}" unless HASH_KEY_TYPES.include?(@hash_key_type) 
         end
         
         # Reads one or many resources from a datastore
@@ -28,27 +33,14 @@ module DataMapper
         def read(query)
           DataMapper.logger.debug("Read #{query.inspect} and its model is #{query.model.inspect}")
           model = query.model
-          repository = query.repository
           serial = model.serial.field
-          table = load_table(model.storage_name(repository), serial)
+          table = load_table(model.storage_name(query.repository), serial)
                   
-          fields = query.fields.map{ |property| property.field }
-          conditions = query.conditions
-          order = query.order
-          limit = query.limit
-          offset = query.offset
-          records = []
           begin
-            DataMapper.logger.debug("Query fields are #{fields.inspect}")
-            table.items.select(*fields).each do |item_data|
-              DataMapper.logger.debug("Item data is #{item_data.attributes.inspect}")
-              records << parse_record(repository, model, item_data.attributes)
-            end
-            DataMapper.logger.debug("Query pulled #{records.inspect}")
+            execute_query(query, table)
           rescue => e
             DataMapper.logger.error("Query failed #{e}")
           end
-          records
         end
         
         # Persists one or many new resources
@@ -71,7 +63,7 @@ module DataMapper
           resources.each do |resource|
             model = resource.model
             serial = model.serial(name)
-            id = generate_id(serial.field)
+            id = generate_id(@hash_key_type)
             
             attributes = resource.attributes(:field)
             attributes[serial.field] = id
@@ -154,8 +146,15 @@ module DataMapper
         
         private
         
-        def generate_id(serial)
-          SecureRandom.uuid.gsub('-', '').hex
+        def generate_id(type)
+          case type
+          when :string
+            SecureRandom.uuid
+          when :number
+            SecureRandom.uuid.gsub('-','').to_i 
+          else
+            raise "Unsupported id type #{type}"
+          end
         end
         
         def to_dynamodb_hash(resource, attributes)
@@ -204,7 +203,7 @@ module DataMapper
         
         def load_table(table_name, key)
           table = @db.tables[table_name]
-          table.hash_key = [key, :string]
+          table.hash_key = [key, @hash_key_type]
           table
         end
       end

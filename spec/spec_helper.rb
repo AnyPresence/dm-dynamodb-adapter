@@ -11,28 +11,28 @@ DataMapper::Logger.new(STDOUT, :debug)
 
 ROOT = Pathname(__FILE__).dirname.parent
 
-#Pathname.glob((ROOT + 'spec/fixtures/**/*.rb').to_s).each { |file| require file }
-#Pathname.glob((ROOT + 'spec/**/shared/**/*.rb').to_s).each { |file| require file }
+Pathname.glob((ROOT + 'spec/fixtures/**/*.rb').to_s).each { |file| require file }
+Pathname.glob((ROOT + 'spec/**/shared/**/*.rb').to_s).each { |file| require file }
 
 TEST_ACCESS_KEY_ID = ENV['AWS_DYNAMODB_TEST_ACCESS_KEY_ID']
 TEST_SECRET_ACCESS_KEY = ENV['AWS_DYNAMODB_TEST_SECRET_ACCESS_KEY']
 
-HEFFALUMP_ID = :id
+HEFFALUMP_ID_MAPPING = :id
+HEFFALUMP_ID_TYPE = :number
 
 raise "AWS credentials not found. Please set both environment variables to run tests: AWS_DYNAMODB_TEST_ACCESS_KEY_ID and AWS_DYNAMODB_TEST_SECRET_ACCESS_KEY" if TEST_ACCESS_KEY_ID.nil? || TEST_SECRET_ACCESS_KEY.nil?
 
 ENV['ADAPTER'] = 'Dynamodb'
 ENV['ADAPTER_SUPPORTS'] = 'all'
 
-
-#def heffalump_model 
-#  Heffalump
-#end
+def heffalump_model
+  Huffalump
+end
 
 def create_test_table(dynamo_db, table_name)
   if dynamo_db.tables[table_name].exists?
     table = dynamo_db.tables[table_name]
-    table.hash_key = [HEFFALUMP_ID, :number]
+    table.hash_key = [HEFFALUMP_ID_MAPPING, HEFFALUMP_ID_TYPE]
     print "Clearing existing records"
     table.items.select do |data|
       print '.'
@@ -41,7 +41,7 @@ def create_test_table(dynamo_db, table_name)
     puts "Done."
   else
     print "Creating table"
-    table = dynamo_db.tables.create(table_name, 1, 1, :hash_key => { HEFFALUMP_ID => :number })
+    table = dynamo_db.tables.create(table_name, 1, 1, :hash_key => { HEFFALUMP_ID_MAPPING => HEFFALUMP_ID_TYPE })
     until table.status == :active
       print '.'
       sleep 1 

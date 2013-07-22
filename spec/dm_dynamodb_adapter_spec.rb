@@ -6,13 +6,13 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
     @adapter = DataMapper.setup(:default,
         { :adapter  => :dynamodb,
           :aws_access_key_id => TEST_ACCESS_KEY_ID,
-          :aws_secret_access_key => TEST_SECRET_ACCESS_KEY
+          :aws_secret_access_key => TEST_SECRET_ACCESS_KEY,
+          :hash_key_type => HEFFALUMP_ID_TYPE
         }
     )
   end
-  it_should_behave_like 'An Adapter'
+  #it_should_behave_like 'An Adapter'
   
-=begin  
   describe '#create' do
     it 'should not raise any errors' do
       lambda {
@@ -51,10 +51,12 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
 
     it 'should not raise any errors' do
       begin
+        puts "Updating color of heffa with id #{@heffa.id}"
         @heffa.color = 'violet'
         @heffa.save
       rescue NameError => e
         puts "OOPS #{e.backtrace.join("\n")}"
+        raise e
       end
     end
 
@@ -78,5 +80,5 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
       heffalump_model.get(*@heffa.key).color.should == color
     end
   end
-=end  
+  
 end
