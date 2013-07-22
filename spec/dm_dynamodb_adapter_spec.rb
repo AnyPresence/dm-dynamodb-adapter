@@ -50,14 +50,8 @@ describe DataMapper::Adapters::Dynamodb::Adapter do
     end
 
     it 'should not raise any errors' do
-      begin
-        puts "Updating color of heffa with id #{@heffa.id}"
-        @heffa.color = 'violet'
-        @heffa.save
-      rescue NameError => e
-        puts "OOPS #{e.backtrace.join("\n")}"
-        raise e
-      end
+      @heffa.color = 'violet'
+      @heffa.save
     end
 
     it 'should not alter the identity field' do

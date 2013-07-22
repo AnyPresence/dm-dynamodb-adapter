@@ -4,7 +4,7 @@ module DataMapper
       class Adapter < DataMapper::Adapters::AbstractAdapter
         include QueryDelegate
         
-        HASH_KEY_TYPES = [:string, :number].freeze
+        HASH_KEY_TYPES = [:string, :number, :binary].freeze
         
         def initialize(name, options)
           super
@@ -13,7 +13,8 @@ module DataMapper
           @db = AWS::DynamoDB.new(:access_key_id => access_key_id,:secret_access_key => secret_access_key)
           DataMapper.logger.debug("Connected to #{@db}")
           @hash_key_type = @options.fetch(:hash_key_type, HASH_KEY_TYPES.first)
-          raise "Key type must be one of #{HASH_KEY_TYPES.join(', ')}" unless HASH_KEY_TYPES.include?(@hash_key_type) 
+          raise "Key type must be one of #{HASH_KEY_TYPES.join(', ')}" unless HASH_KEY_TYPES.include?(@hash_key_type)
+          @next_id = 0
         end
         
         # Reads one or many resources from a datastore
@@ -147,11 +148,14 @@ module DataMapper
         private
         
         def generate_id(type)
+          uuid = SecureRandom.uuid
           case type
           when :string
-            SecureRandom.uuid
+            uuid
           when :number
-            SecureRandom.uuid.gsub('-','').to_i 
+            @next_id += 1 #uuid.gsub('-','').to_i 
+          when :binary
+            uuid.gsub('-','').hex
           else
             raise "Unsupported id type #{type}"
           end
