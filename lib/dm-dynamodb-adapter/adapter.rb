@@ -226,7 +226,10 @@ module DataMapper
           table.hash_key = [key, @hash_key_type]
           table
         end
-      end
+      end # class Adapter
     end
+    
+    ::DataMapper::Adapters::DynamodbAdapter = DataMapper::Adapters::Dynamodb::Adapter
+    self.send(:const_added, :DynamodbAdapter)
   end
 end
